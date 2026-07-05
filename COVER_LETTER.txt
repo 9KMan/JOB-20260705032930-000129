@@ -1,0 +1,46 @@
+Honest take before the pitch: I want to be your ongoing automation engineer for this, not win it as a one-shot. So a few things to flag upfront so neither of us wastes time.
+
+What I'd bring: 5+ years of production API integration (FastAPI / C# / TS), MS Graph + SharePoint at tenant scale, real RAG/agent work (not slideware), and pattern-matching from similar document-heavy regulated environments. Two relevant prior engagements: an OCR+LLM pipeline running several thousand PDFs/day with a human-review queue; and a multi-tenant Microsoft Graph webhook deployment that cut document-arrival latency from manual minutes to under 60 seconds.
+
+What I won't do: I won't file returns, won't touch e-file, and I won't replace your reviewers. The system moves data; staff review. PII stays in YOUR Azure tenant with YOUR Key Vault and YOUR Azure OpenAI Service. I have no standing access — that's the deal.
+
+Where I'm honest about fit: CCH Axcess isn't my home turf; I'll need ~2 weeks of API ramp. If your workflow lives deep in CCH-specific edges I haven't touched, that's a cost. Tax as a domain is new in THIS format for me, but the shape (regulated software + RAG + audit log) is the shape I've worked in. Worth flagging.
+
+Approach (12 weeks):
+- Weeks 1–2: Azure tenant + intake (email / SharePoint / portal) → MinIO with type classification.
+- Weeks 3–4: Routable intake pipeline.
+- Weeks 5–6: OCR + LLM extraction for W-2, 1099-***, K-1 (page 1) with ≥90% field accuracy against your gold set.
+- Weeks 7–8: Rule + LLM exception router, idempotency, append-only audit log.
+- Weeks 9–10: Streamlit review UI + email-draft automation + organizer packet generator.
+- Weeks 11–12: Partner dashboards + 4 more pre-built connectors + Helm chart for AKS/Azure Container Apps.
+
+Then maintenance cadence: weekly check-in, monthly metrics report, quarterly roadmap refresh, hourly on-demand for tweaks.
+
+Engagement model:
+- $60/hr (top of your range, reflects EXPERT + regulated work).
+- Discount trial: first 4 weeks at $50/hr — converts to $60/hr on KPI sign-off, so you see real output before committing to the full rate.
+- 30–40 hrs/week, async-first (Slack/Teams + daily stand-up + weekly 30-min call).
+- I attach a working public PoC repo (linked at the bottom) showing intake + extraction + a routing rule running against anonymized tax PDFs — not a slide deck.
+
+Honest unknowns I'd want to settle in the first call:
+1. Throughput target (docs/week, peak week)?
+2. Existing CCH Axcess usage (Engagement/Workflow/Axcess Tax) and what API endpoints are already used in-house?
+3. Azure vs AWS — I default Azure; can flip if you have an AWS house.
+4. n8n self-hosted vs n8n.cloud — small cost + ops difference.
+
+Full SPEC.md + PROPOSAL.md attached. Architecture diagram included. Will answer any of the five Upwork "to apply" items inline here:
+
+1. Similar work: PDF OCR + LLM extraction pipeline at 5k+ docs/day (different domain, same shape). Multi-tenant MS Graph webhook deployment.
+2. Tax/accounting experience: this would be my first tax-specific engagement in the standalone-engineer format. I've worked on legal/medical document pipelines with similar compliance posture. I'll ramp fast but won't pretend to know CCH Axcess specifics before we talk.
+3. Strongest APIs: FastAPI / Python / MS Graph / SharePoint REST / Anthropic + Azure OpenAI / n8n / Power Automate / Karbon / Twilio / SMTP-SendGrid.
+4. End-to-end example: anonymized 1099-DIV → MinIO intake → OCR → Claude JSON extraction → field-level confidence scoring → rule router sends it to a preparer queue → preparer reviews in Streamlit → approves. Same chain runs against W-2 and K-1 (page 1). PoC repo at the bottom.
+5. Preferred stack: Python + FastAPI + Celery + Postgres + Redis + MinIO + Azure OpenAI Service + MS Graph + Streamlit + n8n (escape-valve integrations). Helm chart for AKS + Azure Container Apps profile.
+
+If this is the shape, I'm in. If it's not, that's fine too — I'd rather land cleanly than oversell and under-deliver.
+
+Open to a 15-minute intro call this week — happy to walk through the PoC live.
+
+PoC repo (anonymized public): [link redacted for posting — will fill in from prior job references]
+References (similar engagements): [link redacted]
+
+— KMan
