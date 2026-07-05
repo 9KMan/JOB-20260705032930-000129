@@ -1,0 +1,17 @@
+Form 1099-B  — Proceeds from Broker and Barter Exchange (SAMPLE / SYNTHETIC)
+
+Payer:  SAMPLE BROKERAGE INC
+Payer TIN:  22-3344556
+Recipient TIN:  XXX-XX-XXXX  (redacted)
+Tax Year:  2025
+
+Box 1a Description:  100 sh VTI (ETF) — long-term
+Box 1b Date acquired:  2018-06-01
+Box 1c Date sold:       2025-12-15
+Box 2  Proceeds:           $24,500.00
+Box 3  Cost or other basis: $20,000.00
+Box 4  Federal income tax withheld:    0.00
+Box 5  Noncovered security:               N
+Box 6  Reported to IRS:                    Y
+
+[End of synthetic 1099-B form]
