@@ -38,8 +38,11 @@ docs/dlq/
 # Docker
 *.log
 
-# The .planning dir holds internal pipeline notes; not part of the public repo
+# The .planning dir is repo-local (kept for parity with prior-job
+# build-status artifacts). All *.md inside it is intended-tracked.
 .planning/
+!.planning/*.md
+!.planning/*/*.md
 
 # OS
 Thumbs.db
