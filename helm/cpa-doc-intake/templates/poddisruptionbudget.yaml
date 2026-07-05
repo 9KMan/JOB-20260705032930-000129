@@ -1,0 +1,18 @@
+{{/*
+CPA Document Intake — Pod Disruption Budget
+Decision: 03-audit-immutability — guarantees at least one pod survives voluntary disruption during node drains.
+*/}}
+{{- if .Values.podDisruptionBudget.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "cpa-doc-intake.fullname" . }}-api
+  labels:
+    {{- include "cpa-doc-intake.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "cpa-doc-intake.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+{{- end }}

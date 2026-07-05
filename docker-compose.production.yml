@@ -1,0 +1,162 @@
+# =============================================================================
+# Production-shape compose for the CPA Document Intake service.
+#
+# Differences vs. docker-compose.yml (the PoC shape):
+#   - Real Postgres 16 + Redis 7 + MinIO (not single-user)
+#   - App talks to all three via service-host DNS names (no localhost)
+#   - All secrets sourced from .env.production (never hardcoded)
+#   - Healthchecks on every long-lived service
+#   - Volumes for postgres (data) + minio (audit + docs)
+#   - Resource limits (memory/cpu) so a runaway worker can't OOM the host
+#   - Restart policy: unless-stopped for prod
+#   - Networks: explicit bridge (production ops like explicit networks)
+#
+# This compose is "production-shape" — it WILL run a real production
+# workload inside the firm's Azure tenant, mounted against Azure Database
+# for PostgreSQL Flexible Server + Azure Cache for Redis + Azure Blob via
+# the same MinIO S3 API. For full Azure-managed deploys, prefer Helm /
+# Bicep instead (see helm/cpa-doc-intake/ and deploy/azure-container-apps.bicep).
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cpa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cpa_intake}
+      POSTGRES_USER: ${POSTGRES_USER:-cpa_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required - set in .env.production}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cpa_admin} -d ${POSTGRES_DB:-cpa_intake}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app_net
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1.0'
+        reservations:
+          memory: 256m
+    ports: []   # not exposed externally — accessed only via app_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: cpa-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"          # durable streams (PoC uses in-memory; prod wants AOF)
+      - --maxmemory
+      - "512mb"
+      - --maxmemory-policy
+      - "allkeys-lru"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app_net
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: '0.5'
+
+  minio:
+    image: minio/minio:RELEASE.2024-08-17T01-24-54Z
+    container_name: cpa-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?required - set in .env.production}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required - set in .env.production}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app_net
+    ports:
+      - "${MINIO_PUBLIC_PORT:-9000}:9000"   # only if partner wants a browser console
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: cpa-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      # Production overrides (env_file values can be overridden here)
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - app_net
+    ports:
+      - "${APP_PUBLIC_PORT:-8000}:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1.5'
+        reservations:
+          memory: 256m
+          cpus: '0.25'
+
+  otel-collector:
+    # OpenTelemetry collector for distributed tracing. Optional — if you don't
+    # want OTLP shipping, set OTEL_EXPORTER_OTLP_ENDPOINT="" in .env.production
+    # and remove this service. The app continues to work either way.
+    image: otel/opentelemetry-collector-contrib:0.110.0
+    container_name: cpa-otel
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: cpa_postgres_data
+  redis_data:
+    name: cpa_redis_data
+  minio_data:
+    name: cpa_minio_data

@@ -1,0 +1,109 @@
+# =============================================================================
+# Multi-stage production Dockerfile for the CPA Document Intake service.
+#
+# This is the production shape of the PoC's Dockerfile. Key differences:
+#   - Multi-stage: builder (compile, install) + runtime (slim, no compiler)
+#   - Non-root user (uid 10001) for Azure Container Apps compatibility
+#   - gunicorn + uvicorn worker (production WSGI server, not Streamlit dev)
+#   - /health endpoint baked in (for Azure Container Apps health probes)
+#   - /metrics endpoint (for Prometheus scraping)
+#   - Tesseract 5 + language packs in the runtime image (real OCR)
+#   - Layered: system deps + pip-install + code in separate COPY steps
+#     so that code-only changes rebuild fast.
+#
+# Build:    docker build -f Dockerfile.production -t cpa-doc-intake:v0.1.0 .
+# Run:      docker run --rm -p 8000:8000 --env-file .env.production \
+#               cpa-doc-intake:v0.1.0
+# Test:     docker run --rm cpa-doc-intake:v0.1.0 python -m pytest tests/ -q
+#
+# Production telemetry (Azure Container Apps):
+#   - HEALTHCHECK on /health every 30s (optional; ACA has its own probes)
+#   - Liveness/readiness split via /health (live) and /ready (deps)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: builder
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /build
+
+# Install build deps (only used for compiling wheels; runtime image drops these)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (maximises Docker layer caching — code changes
+# don't reinstall deps)
+COPY pyproject.toml requirements.txt requirements.production.txt ./
+RUN pip install --user --no-warn-script-location \
+        -r requirements.txt \
+        -r requirements.production.txt
+
+# Copy source last
+COPY src/ ./src/
+
+# -----------------------------------------------------------------------------
+# Stage 2: runtime
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PATH=/home/app/.local/bin:$PATH \
+    PYTHONPATH=/home/app
+
+# Tesseract 5 + language packs (eng only; add more with tesseract-ocr-spa etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        tesseract-ocr \
+        tesseract-ocr-eng \
+        libpq5 \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user for Azure Container Apps + security baseline
+RUN groupadd --system --gid 10001 app \
+    && useradd  --system --uid 10001 --gid app \
+                 --home-dir /home/app --shell /sbin/nologin \
+                 app
+
+WORKDIR /home/app
+USER app
+
+# Copy installed Python packages + code from builder
+COPY --from=builder --chown=app:app /root/.local /home/app/.local
+COPY --from=builder --chown=app:app /build/src /home/app/src
+
+# =============================================================================
+# Runtime config
+# =============================================================================
+EXPOSE 8000
+
+# Production WSGI server: gunicorn wrapping uvicorn-worker for ASGI app.
+# Worker count = (2 * CPU + 1) is the canonical formula; we make it env-tunable
+# so the partner can dial up during peak tax season.
+ENV GUNICORN_WORKERS=${GUNICORN_WORKERS:-3} \
+    GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-120} \
+    LOG_LEVEL=${LOG_LEVEL:-info}
+
+# Health probes
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
+    CMD curl -fsS http://localhost:8000/health || exit 1
+
+# Default command — production server
+CMD ["sh", "-c", "exec gunicorn src.api.main:app \
+      --workers ${GUNICORN_WORKERS} \
+      --worker-class uvicorn.workers.UvicornWorker \
+      --bind 0.0.0.0:8000 \
+      --timeout ${GUNICORN_TIMEOUT} \
+      --log-level ${LOG_LEVEL} \
+      --access-logfile - \
+      --error-logfile -"]

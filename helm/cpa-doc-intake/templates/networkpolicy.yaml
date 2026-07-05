@@ -1,0 +1,63 @@
+{{/*
+CPA Document Intake — Network Policy
+Decision: 03-audit-immutability + 04-intake-idempotency — restricts ingress to known namespaces.
+*/}}
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cpa-doc-intake.fullname" . }}-api
+  labels:
+    {{- include "cpa-doc-intake.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cpa-doc-intake.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 9090
+          protocol: TCP
+    # Allow ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - port: 8000
+          protocol: TCP
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+    # Allow PostgreSQL
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Allow HTTPS to Azure services (Storage, Key Vault, OpenAI)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+{{- end }}

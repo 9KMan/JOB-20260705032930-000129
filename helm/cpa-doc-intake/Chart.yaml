@@ -1,0 +1,32 @@
+apiVersion: v2
+name: cpa-doc-intake
+description: |
+  CPA Document Intake Pipeline — production Helm chart.
+
+  Auto-scales to handle tax-season volume spikes; pulls secrets from
+  Azure Key Vault via the AKS Secret Provider CSI driver; uses managed
+  identity to talk to Azure OpenAI Service and Microsoft Graph without
+  per-pod credentials.
+
+type: application
+version: 0.1.0   # chart version
+appVersion: "0.1.0"
+
+keywords:
+  - cpa
+  - tax
+  - document-intake
+  - ocr
+  - rag
+  - azure
+  - aks
+
+home: https://github.com/9KMan/JOB-20260705032930-000129
+sources:
+  - https://github.com/9KMan/JOB-20260705032930-000129
+maintainers:
+  - name: KMan
+    email: kman@9kman.dev
+
+annotations:
+  category: Workflow

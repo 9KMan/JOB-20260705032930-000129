@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cpa-doc-intake-config
+  labels:
+    {{- include "cpa-doc-intake.labels" . | nindent 4 }}
+data:
+  APP_LOG_LEVEL:                {{ .Values.config.appLogLevel | quote }}
+  GUNICORN_WORKERS:             {{ .Values.config.gunicornWorkers | quote }}
+  GUNICORN_TIMEOUT:             {{ .Values.config.gunicornTimeout | quote }}
+  INGEST_POLL_INTERVAL_SECONDS: {{ .Values.config.ingestPollIntervalSeconds | quote }}
+  RATE_LIMIT_PER_MINUTE:        {{ .Values.config.rateLimitPerMinute | quote }}
+
+  # Azure OpenAI Service (managed identity — no API key in ConfigMap)
+  AZURE_OPENAI_ENDPOINT:         {{ .Values.azureOpenai.endpoint | quote }}
+  AZURE_OPENAI_DEPLOYMENT_NAME:  {{ .Values.azureOpenai.deploymentName | quote }}
+  AZURE_OPENAI_API_VERSION:      {{ .Values.azureOpenai.apiVersion | quote }}
+
+  # Microsoft Graph (OBO uses managed identity)
+  MS_GRAPH_CLIENT_ID:   {{ .Values.msGraph.clientId | quote }}
+  MS_GRAPH_TENANT_ID:   {{ .Values.msGraph.tenantId | quote }}
+  MS_GRAPH_REDIRECT_URI: {{ .Values.msGraph.redirectUri | quote }}
+
+  # Postgres (password via Key Vault CSI mount at /mnt/secrets/postgres-password)
+  POSTGRES_HOST:    {{ .Values.postgres.host | quote }}
+  POSTGRES_DB:      {{ .Values.postgres.db | quote }}
+  POSTGRES_USER:    {{ .Values.postgres.user | quote }}
+  POSTGRES_PORT:    {{ .Values.postgres.port | quote }}
+  POSTGRES_SSL_MODE: {{ .Values.postgres.sslMode | quote }}
+
+  # Redis (password via Key Vault CSI mount at /mnt/secrets/redis-password)
+  REDIS_HOST:        {{ .Values.redis.host | quote }}
+  REDIS_PORT:        {{ .Values.redis.port | quote }}
+  REDIS_SSL_ENABLED: {{ .Values.redis.sslEnabled | quote }}
+
+  # Object storage (Azure Blob via S3-compatible API)
+  OBJECT_STORAGE_PROVIDER:      {{ .Values.objectStorage.provider | quote }}
+  OBJECT_STORAGE_BUCKET_DOCS:   {{ .Values.objectStorage.bucketDocs | quote }}
+  OBJECT_STORAGE_BUCKET_AUDIT:  {{ .Values.objectStorage.bucketAudit | quote }}
+  OBJECT_STORAGE_ENDPOINT:      {{ .Values.objectStorage.endpoint | quote }}
+
+  # OpenTelemetry
+  {{- if .Values.otel.enabled }}
+  OTEL_ENABLED:                "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT:  {{ .Values.otel.exporterOtlpEndpoint | quote }}
+  OTEL_SERVICE_NAME:            {{ .Values.otel.serviceName | quote }}
+  {{- else }}
+  OTEL_ENABLED: "false"
+  {{- end }}

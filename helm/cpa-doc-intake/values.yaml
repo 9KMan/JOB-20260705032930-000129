@@ -1,0 +1,209 @@
+# Default values for cpa-doc-intake.
+# Required env vars in .env.production that get baked into ConfigMap/Secret:
+#   AZURE_OPENAI_ENDPOINT          (Azure OpenAI Service endpoint, no key!)
+#   AZURE_TENANT_ID                (Azure AD tenant ID for managed identity)
+#   AZURE_KEY_VAULT_URI            (https://<vault>.vault.azure.net/)
+#   AZURE_CLIENT_ID                (managed-identity client ID for OBO flow)
+#   MS_GRAPH_CLIENT_ID             (Azure AD app registration for MS Graph OBO)
+#   MS_GRAPH_TENANT_ID             (same tenant as AZURE_TENANT_ID)
+#   POSTGRES_HOST                  (Azure Database for PG Flexible Server FQDN)
+#   POSTGRES_DB
+#   POSTGRES_USER                  (NOT password — use AAD authentication)
+#   REDIS_HOST                     (Azure Cache for Redis FQDN)
+#   MINIO_BUCKET_DOCS              (Azure Blob container name)
+#   MINIO_BUCKET_AUDIT
+# Sensitive secrets come from Key Vault via CSI driver, not stored here.
+
+# -----------------------------------------------------------------------------
+# API deployment — replicas, autoscaling, resources, probes
+# Decision: 02-router-confidence — runs the production routing pipeline
+# -----------------------------------------------------------------------------
+api:
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: "1500m"
+      memory: 2Gi
+
+# -----------------------------------------------------------------------------
+# Container image — typically ACR (Azure Container Registry)
+# -----------------------------------------------------------------------------
+image:
+  repository: cpaacr.azurecr.io/cpa-doc-intake
+  tag: 0.1.0
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: acr-pull-secret   # created via `kubectl create secret docker-registry`
+
+# -----------------------------------------------------------------------------
+# Service + ingress
+# -----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"   # 20 MB PDFs
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: cpa-intake.firm.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: cpa-intake-tls
+      hosts:
+        - cpa-intake.firm.example.com
+
+# -----------------------------------------------------------------------------
+# Security contexts — Pod-level and container-level defaults
+# -----------------------------------------------------------------------------
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# -----------------------------------------------------------------------------
+# Probes — gunicorn + Python OCR/LLM stack is memory-hungry
+# -----------------------------------------------------------------------------
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -----------------------------------------------------------------------------
+# Secrets — sourced from Azure Key Vault via SecretProviderClass (CSI driver)
+# Real credentials (Azure OpenAI key, MS Graph secret, Redis password,
+# Postgres password) are mounted as files in /mnt/secrets and projected
+# as Secret objects by the CSI driver. Chart references them; the
+# SecretProviderClass is owned by the cluster operator (not this chart).
+# -----------------------------------------------------------------------------
+secretProviderClass: cpa-key-vault-secrets   # operator must create this
+keyVaultSecretRefs:
+  - secretName: azure-openai-api-key
+    mountPath: /mnt/secrets/azure-openai-api-key
+  - secretName: msgraph-client-secret
+    mountPath: /mnt/secrets/msgraph-client-secret
+  - secretName: postgres-password
+    mountPath: /mnt/secrets/postgres-password
+  - secretName: redis-password
+    mountPath: /mnt/secrets/redis-password
+
+# -----------------------------------------------------------------------------
+# Application config (non-sensitive) — ConfigMap-driven
+# -----------------------------------------------------------------------------
+config:
+  appLogLevel: info
+  gunicornWorkers: 3
+  gunicornTimeout: 120
+  ingestPollIntervalSeconds: 30
+  rateLimitPerMinute: 200
+  enableAuditImmutability: "true"        # Decision: 03-audit-immutability
+  enableIdempotency: "true"              # Decision: 04-intake-idempotency
+  enableReviewerWorkflow: "true"         # Decision: 05-reviewer-workflow
+
+otel:
+  enabled: true
+  exporterOtlpEndpoint: http://otel-collector.observability.svc.cluster.local:4317
+  serviceName: cpa-doc-intake
+
+# -----------------------------------------------------------------------------
+# External services — partner-tier references
+# -----------------------------------------------------------------------------
+azureOpenai:
+  endpoint: https://cpa-openai.openai.azure.com/   # partner overrides via --set
+  deploymentName: gpt-4o
+  apiVersion: 2024-08-01-preview
+
+msGraph:
+  clientId: ""           # set via --set
+  tenantId: ""           # set via --set
+  redirectUri: https://cpa-intake.firm.example.com/auth/callback
+
+postgres:
+  host: ""               # set via --set
+  db: cpa_intake
+  user: cpa_admin        # NOT password — AAD auth via managed identity
+  port: 5432
+  sslMode: require
+
+redis:
+  host: ""               # set via --set
+  port: 6380
+  sslEnabled: true
+
+objectStorage:
+  provider: azure_blob   # or "minio" during PoC; production uses Azure Blob via S3 API
+  bucketDocs: cpa-docs
+  bucketAudit: cpa-audit
+  endpoint: https://cpa.blob.core.windows.net
+
+# -----------------------------------------------------------------------------
+# Service account + RBAC (uses AKS Workload Identity for managed identity)
+# -----------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  name: cpa-doc-intake
+  annotations:
+    azure.workload.identity/client-id: ""     # set via --set from partner's UAMI
+
+# -----------------------------------------------------------------------------
+# Pod disruption budget — keep at least 1 pod running during voluntary disruption
+# Decision: 03-audit-immutability — guarantees audit pipeline stays available
+# -----------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# -----------------------------------------------------------------------------
+# Network policies — production-defensible default: default-deny, then allow
+# only known-app-to-known-app traffic
+# -----------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  ingressEgressRules: []   # operator adds rules for postgres/redis/minio/etc ingress
+
+# -----------------------------------------------------------------------------
+# Scheduling
+# -----------------------------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity: {}
