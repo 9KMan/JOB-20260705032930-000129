@@ -1,0 +1,41 @@
+[project]
+name = "cpa-doc-intake-poc"
+version = "0.1.0"
+description = "CPA / Tax Document Intake Pipeline — Senior Automation Engineer PoC (JOB-20260705032930-000129)"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+  { name = "KMan" }
+]
+requires-python = ">=3.11"
+dependencies = [
+  # PoC uses only stdlib + the UI's streamlit dep.
+  # Production swaps in real OCR (tesseract/paddleocr), LLM clients
+  # (anthropic/openai), MS Graph (msgraph-sdk), Redis (redis-py),
+  # Postgres (psycopg/asyncpg), and Azure SDKs.
+  "streamlit>=1.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.23.5",
+]
+
+[project.scripts]
+cpa-intake = "src.runner:main"
+
+# --- Build system (PoC: setuptools) ----------------------------------------
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+# --- Test configuration ----------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

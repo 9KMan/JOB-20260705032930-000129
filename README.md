@@ -58,6 +58,10 @@ PYTHONPATH=src streamlit run src/ui.py --server.port=8501
 | `scripts/demo.sh` | One-shot demo runner + idempotency check |
 | `scripts/clean.sh` | Reset to clean state |
 | `scripts/test.sh` | Run pytest |
+| `pyproject.toml` | Project metadata + pytest config (single source) |
+| `OUT_OF_SCOPE.md` | 11 production features explicitly deferred from this PoC |
+| `.planning/JOB-129-POC-SCOPE.md` | Phase-block records + GSD-style build notes |
+| `.shipped` | Sentinel preventing rebuild post-ship |
 
 ![Workflow](./diagrams/workflow.svg)
 
