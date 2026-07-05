@@ -1,0 +1,22 @@
+Form 1099-INT  — Interest Income (SAMPLE / SYNTHETIC — NO REAL PII)
+
+Payer:  SAMPLE BANK, N.A.
+Payer TIN:  11-2233445
+Recipient TIN:  XXX-XX-XXXX  (redacted)
+Tax Year:  2025
+
+Box 1 Interest income:           $1,250.00
+Box 2 Early withdrawal penalty:        0.00
+Box 3 Interest on US Savings Bonds:    0.00
+Box 4 Federal income tax withheld:    0.00
+Box 5 Investment expenses:            0.00
+Box 6 Foreign tax paid:               0.00
+Box 7 Foreign country:                N/A
+Box 8 Tax-exempt interest:            0.00
+Box 9 Specified private activity bond interest:  0.00
+Box 10 Market discount:               0.00
+Box 11 Bond premium:                 0.00
+Box 12 Bond premium on Treasury obligations:  0.00
+Box 13 Bond premium on tax-exempt bond:  0.00
+
+[End of synthetic 1099-INT form]

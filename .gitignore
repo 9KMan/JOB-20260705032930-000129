@@ -1,14 +1,23 @@
-# Environment
-.env
-.env.local
-.venv/
-venv/
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
 
 # IDE
 .vscode/
@@ -17,8 +26,20 @@ __pycache__/
 .DS_Store
 
 # Build artifacts
-dist/
-build/
+docs/extracted/*.json
+docs/dlq/
+
+# The audit log is captured by the runner at /tmp/poc-audit-log.jsonl
+/tmp/poc-audit-log.jsonl
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Docker
 *.log
-.claude/
+
+# The .planning dir holds internal pipeline notes; not part of the public repo
 .planning/
+
+# OS
+Thumbs.db

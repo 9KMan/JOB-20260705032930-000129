@@ -1,0 +1,19 @@
+Form W-2 — Wage and Tax Statement (SAMPLE / SYNTHETIC — NO REAL PII)
+
+Employee:  ACME TEST CORP
+Employer EIN:    12-3456789
+Employee SSN:    XXX-XX-XXXX  (redacted for PoC)
+Tax Year:  2025
+
+Box 1 Wages, tips, other compensation:   $75,000.00
+Box 2 Federal income tax withheld:      $11,250.00
+Box 3 Social security wages:             $75,000.00
+Box 4 Social security tax withheld:     $4,650.00
+Box 5 Medicare wages and tips:           $75,000.00
+Box 6 Medicare tax withheld:               $1,087.50
+Box 7 Social security tips:                       0.00
+Box 8 Allocated tips:                             0.00
+
+State: 99 Single  (synthetic)
+
+[End of synthetic W-2 form]

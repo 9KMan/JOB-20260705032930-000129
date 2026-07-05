@@ -1,0 +1,30 @@
+# Compose stack — boot the demo with `docker compose up --build`
+#
+# Services:
+#   - intake:   one-shot runner that ingests samples -> extracted JSON
+#   - ui:       Streamlit review UI on http://localhost:8501
+#
+# Both share ./src/, ./samples/ and ./docs/ as volumes so the user can drop
+# new .txt files into docs/inbox/ and re-run the intake.
+
+services:
+  intake:
+    build: .
+    container_name: cpa-intake
+    volumes:
+      - ./src:/app/src
+      - ./samples:/app/samples
+      - ./docs:/app/docs
+    command: ["python", "-m", "src.runner", "once"]
+  ui:
+    build: .
+    container_name: cpa-ui
+    depends_on:
+      - intake
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src
+      - ./samples:/app/samples
+      - ./docs:/app/docs
+    command: ["streamlit", "run", "src/ui.py", "--server.address=0.0.0.0", "--server.port=8501"]

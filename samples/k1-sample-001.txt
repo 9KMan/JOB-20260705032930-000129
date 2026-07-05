@@ -1,0 +1,22 @@
+Schedule K-1 (Form 1065) — Partner's Share of Income, Deductions, Credits, etc. (SAMPLE / SYNTHETIC — NO REAL PII)
+
+Part I — Information about the partnership
+Partnership: TEST LIMITED PARTNERSHIP
+Partnership EIN:  55-9988776
+
+Part II — Information about the partner
+Partner: SAMPLE PARTNER LLC
+Partner TIN:  XXX-XX-XXXX  (redacted)
+
+Part III — Partner's share of current-year income, deductions and credits
+Line 1 Ordinary business income (loss):   $125,000.00
+Line 2 Net rental real estate income:        0.00
+Line 3 Other net rental income:              0.00
+Line 4 Interest income:                  $5,200.00
+Line 5 Interest income                          <-- ambiguous (dup of L4)
+
+Partner's share of profit: 50%
+Partner's share of loss: 50%
+Partner's capital account beginning:    $500,000.00
+
+[End of synthetic K-1 form — PoC only]

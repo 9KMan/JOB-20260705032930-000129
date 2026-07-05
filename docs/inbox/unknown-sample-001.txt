@@ -1,0 +1,11 @@
+[sample document — no recognizable tax form content]
+
+This is a generic plaintext file with no tax form markers.
+
+It exists so the routing PoC can demonstrate the "low confidence → senior
+reviewer" override branch.
+
+Total: $0.00 (placeholder for convenience)
+Date: 2025-03-15
+
+[End of synthetic Unknown sample]
