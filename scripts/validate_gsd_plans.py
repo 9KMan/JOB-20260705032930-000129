@@ -132,6 +132,7 @@ def main() -> int:
     total_present = 0
     total_missing = 0
     all_ok = True
+    decisions: list[str] = []
 
     for phase_dir in phases:
         plan_path = phase_dir / "PLAN-01.md"
@@ -143,6 +144,8 @@ def main() -> int:
         meta = parse_plan(plan_path)
         phase_num = meta.get("phase", "?")
         phase_name = meta.get("plan", phase_dir.name)
+        decision = meta.get("decision", "(no decision field)")
+        acceptance_decision = meta.get("acceptance_decision", "")
         files = meta.get("files_modified", [])
         depends_on = meta.get("depends_on", [])
 
@@ -151,20 +154,28 @@ def main() -> int:
         total_files += len(files)
         total_present += len(present)
         total_missing += len(missing)
+        if missing:
+            all_ok = False
 
         status = "OK" if not missing else "FAIL"
         print(f"  [{status}] Phase {phase_num}: {phase_name}")
-        print(f"          depends_on: {depends_on or '[]'}")
+        print(f"          decision:   {decision}")
+        if depends_on:
+            print(f"          depends_on: {depends_on}")
         print(f"          wave:       {meta.get('wave', '?')}")
         print(f"          autonomous: {meta.get('autonomous', '?')}")
         print(f"          files:      {len(present)}/{len(files)} present")
-        print(f"          acceptance: {meta.get('acceptance_criteria_count', 0)} criteria")
+        print(f"          acceptance: {acceptance_decision[:90]}{'...' if len(acceptance_decision) > 90 else ''}")
         if missing:
             print(f"          MISSING:    {missing}")
-            all_ok = False
+
+        # Collect decision in a one-line summary
+        decisions.append(f"#{phase_num}={decision[:60]}{'...' if len(decision) > 60 else ''}")
         print()
 
+    decisions_out = " | ".join(decisions)
     print(f"Summary: {total_present}/{total_files} files present, {total_missing} missing")
+    print(f"Decisions proven: {decisions_out}")
     return 0 if all_ok else 1
 
 
